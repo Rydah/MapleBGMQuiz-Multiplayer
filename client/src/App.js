@@ -18,10 +18,8 @@ const theme = createTheme({
   },
 });
 
-// Use Railway URL in production, fallback to localhost for development
-const SOCKET_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-railway-app-name.up.railway.app'
-  : 'http://localhost:3001';
+// Socket connection configuration
+const SOCKET_URL = 'https://maplebgmquiz-production.up.railway.app:8080';
 
 const socket = io(SOCKET_URL);
 
