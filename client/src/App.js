@@ -18,7 +18,8 @@ const theme = createTheme({
   },
 });
 
-const socket = io('http://localhost:3001');
+// Replace localhost with your local IP address
+const socket = io('http://172.16.80.52:3001');
 
 function App() {
   const [gameState, setGameState] = useState('mainMenu');
