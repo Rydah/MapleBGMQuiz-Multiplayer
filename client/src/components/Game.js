@@ -27,17 +27,6 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   const [allBgm, setAllBgm] = useState([]);
   const [fuse, setFuse] = useState(null);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Current Round:', currentRound);
-    console.log('Scores:', scores);
-    console.log('Show Video:', showVideo);
-    console.log('Time Left:', timeLeft);
-    console.log('Is Player Ready:', isPlayerReady);
-    console.log('Fuse instance:', fuse);
-    console.log('All BGM length:', allBgm.length);
-  }, [currentRound, scores, showVideo, timeLeft, isPlayerReady, fuse, allBgm]);
-
   // Load BGM data for fuzzy search
   useEffect(() => {
     fetch('/merged_bgm.json')
@@ -56,9 +45,12 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   // Update Fuse instance when currentRound changes (for year filtering)
   useEffect(() => {
     if (allBgm.length) {
-      // If no year is provided, use all songs
-      const filteredSongs = currentRound?.year 
-        ? allBgm.filter(song => song.metadata.year === currentRound.year)
+      // If no year range is provided, use all songs
+      const filteredSongs = currentRound?.yearFilter 
+        ? allBgm.filter(song => 
+            song.metadata.year >= currentRound.yearFilter.from && 
+            song.metadata.year <= currentRound.yearFilter.to
+          )
         : allBgm;
       
       console.log('Filtered songs:', filteredSongs.length, 'songs');
@@ -66,13 +58,13 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
       
       setFuse(new Fuse(filteredSongs, {
         keys: ['description', 'metadata.title'],
-        threshold: 0.4,
+        threshold: 0.3,
         minMatchCharLength: 2,
         includeScore: true,
         shouldSort: true,
       }));
     }
-  }, [allBgm, currentRound?.year]);
+  }, [allBgm, currentRound?.yearFilter]);
 
   // Initialize game state
   useEffect(() => {
@@ -90,6 +82,26 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
       }
     }
   }, [currentRound?.youtubeId]);
+
+  // Handle video visibility and round end
+  useEffect(() => {
+    if (!currentRound || !scores.length) return;
+
+    const allPlayersGuessed = scores.every(player => player.hasGuessed);
+    console.log('All players guessed:', allPlayersGuessed);
+    const roundEnded = allPlayersGuessed || timeLeft === 0;
+
+    if (roundEnded && !showVideo) {
+      console.log('Round ended, showing video');
+      setShowVideo(true);
+      clearInterval(timerRef.current);
+      // Only try to play video if player is ready and exists
+      if (isPlayerReady && playerRef.current && typeof playerRef.current.playVideo === 'function') {
+        playerRef.current.setSize(640, 360);
+        playerRef.current.playVideo();
+      }
+    }
+  }, [scores, timeLeft, isPlayerReady, showVideo, currentRound]);
 
   // Initialize YouTube player
   useEffect(() => {
@@ -114,7 +126,7 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
         width: '0',
         videoId: currentRound.youtubeId,
         playerVars: {
-          start: currentRound.startTime || 0,
+          start: 0, // Start at 0 initially
           autoplay: 1,
           controls: 0,
           modestbranding: 1,
@@ -123,14 +135,28 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
         events: {
           onReady: (event) => {
             console.log('YouTube player ready');
+            const player = event.target;
+            const duration = player.getDuration();
+            console.log('Video duration:', duration);
+            
+            // Calculate random start time (at least 20 seconds before the end)
+            const maxStartTime = Math.max(0, duration - 20);
+            const newStartTime = Math.floor(Math.random() * maxStartTime);
+            console.log('New start time:', newStartTime);
+            
+            player.seekTo(newStartTime);
+            player.playVideo();
             setIsPlayerReady(true);
-            event.target.setVolume(100);
-            event.target.playVideo();
+            player.setVolume(100);
           },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.ENDED) {
-              event.target.seekTo(currentRound.startTime || 0);
-              event.target.playVideo();
+              const player = event.target;
+              const duration = player.getDuration();
+              const maxStartTime = Math.max(0, duration - 20);
+              const newStartTime = Math.floor(Math.random() * maxStartTime);
+              player.seekTo(newStartTime);
+              player.playVideo();
             }
           }
         },
@@ -146,27 +172,10 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
     return () => {
       if (playerRef.current) {
         playerRef.current.destroy();
+        playerRef.current = null;
       }
     };
   }, [currentRound?.youtubeId, showVideo]);
-
-  // Handle video visibility and round end
-  useEffect(() => {
-    if (!currentRound || !scores.length) return;
-
-    const allPlayersGuessed = scores.every(player => player.hasGuessed);
-    const roundEnded = allPlayersGuessed || timeLeft === 0;
-
-    if (roundEnded && !showVideo) {
-      console.log('Round ended, showing video');
-      setShowVideo(true);
-      clearInterval(timerRef.current);
-      if (isPlayerReady && playerRef.current) {
-        playerRef.current.setSize(640, 360);
-        playerRef.current.playVideo();
-      }
-    }
-  }, [scores, timeLeft, isPlayerReady, showVideo, currentRound]);
 
   // Start countdown timer
   useEffect(() => {
@@ -226,6 +235,9 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   };
 
   const handleNextRound = () => {
+    setShowVideo(false);
+    scores.forEach(player => { player.hasGuessed = false; });
+    
     socket.emit('nextRound', lobbyId);
   };
 
@@ -338,6 +350,30 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
             <Typography variant="subtitle1" gutterBottom>
               Year: {currentRound.correctAnswer.metadata.year}
             </Typography>
+            {scores.map((player, index) => {
+              console.log('Player:', player.name);
+              console.log('Guess:', player.guess);
+              console.log('Correct Answer:', currentRound.correctAnswer.description);
+              console.log('Is Correct:', player.isCorrect);
+              return (
+                <Box
+                  key={index}
+                  sx={{
+                    p: 2,
+                    mt: 2,
+                    borderRadius: 1,
+                    backgroundColor: player.isCorrect
+                      ? 'success.light'
+                      : 'error.light',
+                    color: 'white',
+                  }}
+                >
+                  <Typography variant="body1">
+                    {player.name}: {player.isCorrect ? 'Correct!' : 'Wrong!'}
+                  </Typography>
+                </Box>
+              );
+            })}
             {isHost && (
               <Button
                 variant="contained"

@@ -58,7 +58,12 @@ io.on('connection', (socket) => {
   socket.on('startGame', (lobbyId) => {
     const lobby = lobbies.get(lobbyId);
     if (lobby && socket.id === lobby.host) {
+      // Initialize all players' scores to 0
+      lobby.players.forEach(player => {
+        player.score = 0;
+      });
       lobby.gameState = 'playing';
+      io.to(lobbyId).emit('gameStarted', lobby.players);
       startNewRound(lobbyId);
     }
   });
@@ -66,6 +71,12 @@ io.on('connection', (socket) => {
   socket.on('nextRound', (lobbyId) => {
     const lobby = lobbies.get(lobbyId);
     if (lobby && socket.id === lobby.host) {
+      // Reset all players' guesses and hasGuessed status
+      lobby.players.forEach(player => {
+        player.guess = undefined;
+        player.hasGuessed = false;
+      });
+
       startNewRound(lobbyId);
     }
   });
@@ -177,12 +188,17 @@ function endRound(lobbyId) {
 
   io.to(lobbyId).emit('roundEnded', {
     correctAnswer,
-    scores: lobby.players.map(p => ({ name: p.name, score: p.score })),
+    scores: lobby.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      score: p.score,
+      guess: p.guess,
+      hasGuessed: p.guess !== undefined,
+      isCorrect: p.guess === correctAnswer.description || p.guess === correctAnswer.metadata.title
+    })),
     youtubeId: lobby.currentRound.bgm.youtube
   });
 
-  // Reset guesses for next round
-  lobby.players.forEach(player => delete player.guess);
 }
 
 const PORT = process.env.PORT || 3001;

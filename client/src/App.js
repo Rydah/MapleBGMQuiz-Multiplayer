@@ -58,6 +58,15 @@ function App() {
       setScores(scores);
     });
 
+    socket.on('nextRound', () => {
+      // Reset scores state to mark all players as not guessed
+      setScores(prevScores => prevScores.map(player => ({
+        ...player,
+        hasGuessed: false,
+        guess: undefined
+      })));
+    });
+
     socket.on('yearFilterUpdated', ({ from, to }) => {
       // Update year filter in game state
     });
@@ -69,6 +78,7 @@ function App() {
       socket.off('joinError');
       socket.off('roundStarted');
       socket.off('roundEnded');
+      socket.off('nextRound');
       socket.off('yearFilterUpdated');
     };
   }, []);
