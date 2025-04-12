@@ -29,7 +29,10 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
 
   // Load BGM data for fuzzy search
   useEffect(() => {
-    fetch('/merged_bgm.json')
+    // Use the correct path for GitHub Pages
+    const bgmUrl = '/MapleBGMQuiz-Multiplayer/merged_bgm.json';
+
+    fetch(bgmUrl)
       .then(response => response.json())
       .then(data => {
         console.log('Loaded BGM data:', data.length, 'songs');

@@ -19,9 +19,23 @@ const theme = createTheme({
 });
 
 // Socket connection configuration
-const SOCKET_URL = 'https://maplebgmquiz-production.up.railway.app:8080';
+const SOCKET_URL = 'https://maplebgmquiz-production.up.railway.app';
 
 const socket = io(SOCKET_URL);
+
+// Add socket connection status logging
+socket.on('connect', () => {
+  console.log('Connected to server!');
+  console.log('Socket ID:', socket.id);
+});
+
+socket.on('connect_error', (error) => {
+  console.error('Connection error:', error);
+});
+
+socket.on('disconnect', (reason) => {
+  console.log('Disconnected from server:', reason);
+});
 
 function App() {
   const [gameState, setGameState] = useState('mainMenu');
