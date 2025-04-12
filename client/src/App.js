@@ -18,8 +18,12 @@ const theme = createTheme({
   },
 });
 
-// Replace localhost with your local IP address
-const socket = io('http://172.16.80.52:3001');
+// Use Railway URL in production, fallback to localhost for development
+const SOCKET_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://your-railway-app-name.up.railway.app'
+  : 'http://localhost:3001';
+
+const socket = io(SOCKET_URL);
 
 function App() {
   const [gameState, setGameState] = useState('mainMenu');

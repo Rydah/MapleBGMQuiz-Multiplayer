@@ -7,9 +7,11 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+
+// Configure CORS
 const io = socketIo(server, {
   cors: {
-    origin: "*",
+    origin: "*", // This allows all origins. In production, you might want to restrict this to your GitHub Pages URL
     methods: ["GET", "POST"]
   }
 });
@@ -216,6 +218,7 @@ function endRound(lobbyId) {
 
 }
 
+// Use PORT provided by Railway or default to 3001
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
