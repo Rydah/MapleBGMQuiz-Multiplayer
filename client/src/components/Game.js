@@ -137,11 +137,10 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
             console.log('YouTube player ready');
             const player = event.target;
             const duration = player.getDuration();
-            console.log('Video duration:', duration);
             
-            // Calculate random start time (at least 20 seconds before the end)
+            // Calculate start time using server-provided random value
             const maxStartTime = Math.max(0, duration - 20);
-            const newStartTime = Math.floor(Math.random() * maxStartTime);
+            const newStartTime = Math.floor(currentRound.startRandomValue * maxStartTime);
             console.log('New start time:', newStartTime);
             
             player.seekTo(newStartTime);
@@ -154,7 +153,7 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
               const player = event.target;
               const duration = player.getDuration();
               const maxStartTime = Math.max(0, duration - 20);
-              const newStartTime = Math.floor(Math.random() * maxStartTime);
+              const newStartTime = Math.floor(currentRound.startRandomValue * maxStartTime);
               player.seekTo(newStartTime);
               player.playVideo();
             }
@@ -175,7 +174,7 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
         playerRef.current = null;
       }
     };
-  }, [currentRound?.youtubeId, showVideo]);
+  }, [currentRound?.youtubeId, currentRound?.startRandomValue, showVideo]);
 
   // Start countdown timer
   useEffect(() => {
@@ -237,7 +236,7 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   const handleNextRound = () => {
     setShowVideo(false);
     scores.forEach(player => { player.hasGuessed = false; });
-    
+
     socket.emit('nextRound', lobbyId);
   };
 

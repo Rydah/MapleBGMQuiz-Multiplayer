@@ -77,6 +77,14 @@ io.on('connection', (socket) => {
         player.hasGuessed = false;
       });
 
+      // Emit the updated player list to all players
+      io.to(lobbyId).emit('nextRound', lobby.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        score: p.score,
+        hasGuessed: false
+      })));
+
       startNewRound(lobbyId);
     }
   });
@@ -144,19 +152,26 @@ function startNewRound(lobbyId) {
 
   // Select random BGM
   const randomBgm = filteredBgm[Math.floor(Math.random() * filteredBgm.length)];
-  const startTime = Math.floor(Math.random() * (300 - 20)); // Random start time (max 5 minutes - 20 seconds)
+
+  // Generate a random value between 0 and 1 to be used for start time calculation
+  const startRandomValue = Math.random();
+
+  // Reset all players' hasGuessed status
+  lobby.players.forEach(player => {
+    player.hasGuessed = false;
+    player.guess = undefined;
+  });
 
   lobby.currentRound = {
     bgm: randomBgm,
-    startTime,
     guesses: new Map(),
     startTime: Date.now()
   };
 
+  // Send the YouTube ID and random value to all players
   io.to(lobbyId).emit('roundStarted', {
-    startTime,
-    duration: 20,
-    youtubeId: randomBgm.youtube
+    youtubeId: randomBgm.youtube,
+    startRandomValue: startRandomValue
   });
 
   // End round after 20 seconds
