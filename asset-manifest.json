@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/MapleBGMQuiz-Multiplayer/static/js/main.c3576c0c.js",
+    "main.js": "/MapleBGMQuiz-Multiplayer/static/js/main.489e8c7b.js",
     "index.html": "/MapleBGMQuiz-Multiplayer/index.html",
-    "main.c3576c0c.js.map": "/MapleBGMQuiz-Multiplayer/static/js/main.c3576c0c.js.map"
+    "main.489e8c7b.js.map": "/MapleBGMQuiz-Multiplayer/static/js/main.489e8c7b.js.map"
   },
   "entrypoints": [
-    "static/js/main.c3576c0c.js"
+    "static/js/main.489e8c7b.js"
   ]
 }
