@@ -31,6 +31,15 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   const [fuse, setFuse] = useState(null);
   const [volume, setVolume] = useState(100);
   const [isMuted, setIsMuted] = useState(false);
+  const [hasGuessed, setHasGuessed] = useState(false);
+  
+  // Use localScores for rendering and state checks
+  const currentPlayer = scores.find(player => player.id === socket.id);
+
+  // Update hasGuessed state based on localScores
+  useEffect(() => {
+    setHasGuessed(currentPlayer?.hasGuessed || false);
+  }, [currentPlayer?.hasGuessed]);
 
   // Load BGM data for fuzzy search
   useEffect(() => {
@@ -215,8 +224,13 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
 
   const handleInputChange = (event, newValue, reason) => {
     console.log('Input changed:', newValue, 'Reason:', reason);
-    setGuess(newValue || '');
     
+    // Only update guess if it's a direct input change
+    if (reason === 'input') {
+      setGuess(newValue || '');
+    }
+    
+    // Always update suggestions based on input
     if (newValue && newValue.length >= 2 && fuse) {
       console.log('Searching for:', newValue);
       const results = fuse.search(newValue);
@@ -230,8 +244,12 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   const handleOptionSelected = (event, option) => {
     console.log('Option selected:', option);
     if (option) {
-      const selectedValue = typeof option === 'string' ? option : option.description;
+      // Always use the description for the guess
+      const selectedValue = option.description || option;
+      console.log('Setting guess to:', selectedValue);
       setGuess(selectedValue);
+      // Clear suggestions after selection
+      setSuggestions([]);
     }
   };
 
@@ -241,10 +259,17 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   };
 
   const submitGuess = () => {
-    if (guess.trim()) {
-      onSubmitGuess(guess.trim());
+    console.log('Submitting guess:', guess);
+    // Check local hasGuessed state to prevent double submission
+    if (guess && guess.trim() && !hasGuessed) {
+      const trimmedGuess = guess.trim();
+      console.log('Submitting trimmed guess:', trimmedGuess);
+      onSubmitGuess(trimmedGuess); // Send guess to server
+      // No need to set local state here, wait for server update
+      // setHasGuessed(true); 
       setSuggestions([]);
-      setGuess('');
+    } else {
+      console.log('Guess not submitted:', {guess, hasGuessed});
     }
   };
 
@@ -352,26 +377,45 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Guess the BGM"
+                      label={hasGuessed ? "Your guess has been submitted" : "Guess the BGM"}
                       fullWidth
                       variant="outlined"
                       autoComplete="off"
+                      disabled={hasGuessed}
                     />
                   )}
                   noOptionsText="No matches found"
                   blurOnSelect={false}
                   clearOnBlur={false}
+                  disabled={hasGuessed}
                 />
                 <Button
                   variant="contained"
                   color="primary"
                   onClick={submitGuess}
                   sx={{ minWidth: '120px' }}
+                  disabled={hasGuessed}
                 >
-                  Submit
+                  {hasGuessed ? "Guessed" : "Submit"}
                 </Button>
               </Box>
             </form>
+            {hasGuessed && (
+              <Box sx={{ 
+                mt: 2, 
+                p: 2, 
+                backgroundColor: 'primary.light', 
+                borderRadius: 1,
+                color: 'white'
+              }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  Your Guess:
+                </Typography>
+                <Typography variant="body1">
+                  {guess}
+                </Typography>
+              </Box>
+            )}
           </Paper>
         ) : currentRound?.correctAnswer ? (
           <Paper elevation={3} sx={{ p: 3 }}>
@@ -385,10 +429,25 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
               Year: {currentRound.correctAnswer.metadata.year}
             </Typography>
             {scores.map((player, index) => {
+              // Add more detailed logging to see exactly what we're receiving
+              const debugIsCorrect = typeof player.isCorrect === 'undefined' ? 'undefined' : player.isCorrect;
               console.log('Player:', player.name);
               console.log('Guess:', player.guess);
               console.log('Correct Answer:', currentRound.correctAnswer.description);
-              console.log('Is Correct:', player.isCorrect);
+              console.log('Is Correct (raw):', player.isCorrect);
+              console.log('Is Correct (type):', typeof player.isCorrect);
+              
+              // Use string equality for comparison
+              const guessMatchesDescription = player.guess === currentRound.correctAnswer.description;
+              const guessMatchesTitle = player.guess === currentRound.correctAnswer.metadata.title;
+              console.log('Client side check - matches description:', guessMatchesDescription);
+              console.log('Client side check - matches title:', guessMatchesTitle);
+              
+              // Use a fallback for isCorrect if it's undefined
+              const isCorrectValue = player.isCorrect === undefined 
+                ? (guessMatchesDescription || guessMatchesTitle)
+                : player.isCorrect;
+              
               return (
                 <Box
                   key={index}
@@ -396,14 +455,14 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
                     p: 2,
                     mt: 2,
                     borderRadius: 1,
-                    backgroundColor: player.isCorrect
+                    backgroundColor: isCorrectValue
                       ? 'success.light'
                       : 'error.light',
                     color: 'white',
                   }}
                 >
                   <Typography variant="body1">
-                    {player.name}: {player.isCorrect ? 'Correct!' : 'Wrong!'}
+                    {player.name}: {isCorrectValue ? 'Correct!' : 'Wrong!'}
                   </Typography>
                 </Box>
               );

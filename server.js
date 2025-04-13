@@ -93,10 +93,23 @@ io.on('connection', (socket) => {
 
   socket.on('submitGuess', ({ lobbyId, guess }) => {
     const lobby = lobbies.get(lobbyId);
+    const correctAnswer = lobby.currentRound.bgm;
+    
     if (lobby && lobby.gameState === 'playing') {
       const player = lobby.players.find(p => p.id === socket.id);
-      if (player) {
+      if (player && !player.hasGuessed) {
         player.guess = guess;
+        player.hasGuessed = true;
+        
+        io.to(lobbyId).emit('playerGuessedUpdate', lobby.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          score: p.score,
+          guess: p.guess,
+          isCorrect: p.guess === correctAnswer.description || p.guess === correctAnswer.metadata.title,
+          hasGuessed: p.hasGuessed
+        })));
+
         checkRoundCompletion(lobbyId);
       }
     }

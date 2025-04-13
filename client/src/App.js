@@ -75,6 +75,10 @@ function App() {
       setScores(scores);
     });
 
+    socket.on('playerGuessedUpdate', (scores) => {
+      setScores(scores);
+    });
+
     socket.on('nextRound', () => {
       // Reset scores state to mark all players as not guessed
       setScores(prevScores => prevScores.map(player => ({
