@@ -11,9 +11,12 @@ import {
   Autocomplete,
   Button,
   CircularProgress,
+  Slider,
 } from '@mui/material';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import Fuse from 'fuse.js';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 
 function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socket, lobbyId }) {
   const [guess, setGuess] = useState('');
@@ -26,6 +29,8 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   const timerRef = useRef(null);
   const [allBgm, setAllBgm] = useState([]);
   const [fuse, setFuse] = useState(null);
+  const [volume, setVolume] = useState(100);
+  const [isMuted, setIsMuted] = useState(false);
 
   // Load BGM data for fuzzy search
   useEffect(() => {
@@ -149,7 +154,7 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
             player.seekTo(newStartTime);
             player.playVideo();
             setIsPlayerReady(true);
-            player.setVolume(100);
+            player.setVolume(isMuted ? 0 : volume);
           },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.ENDED) {
@@ -178,6 +183,13 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
       }
     };
   }, [currentRound?.youtubeId, currentRound?.startRandomValue, showVideo]);
+
+  // Separate useEffect for volume control
+  useEffect(() => {
+    if (playerRef.current && playerRef.current.setVolume) {
+      playerRef.current.setVolume(isMuted ? 0 : volume);
+    }
+  }, [volume, isMuted]);
 
   // Start countdown timer
   useEffect(() => {
@@ -231,8 +243,8 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
   const submitGuess = () => {
     if (guess.trim()) {
       onSubmitGuess(guess.trim());
-      setGuess('');
       setSuggestions([]);
+      setGuess('');
     }
   };
 
@@ -241,6 +253,15 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
     scores.forEach(player => { player.hasGuessed = false; });
 
     socket.emit('nextRound', lobbyId);
+  };
+
+  // Add volume control handlers
+  const handleVolumeChange = (event, newValue) => {
+    setVolume(newValue);
+  };
+
+  const handleMuteToggle = () => {
+    setIsMuted(!isMuted);
   };
 
   if (isLoading) {
@@ -295,6 +316,17 @@ function Game({ currentRound, scores, onSubmitGuess, onLeaveLobby, isHost, socke
 
         {!showVideo ? (
           <Paper elevation={3} sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <Button onClick={handleMuteToggle}>
+                {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
+              </Button>
+              <Slider
+                value={volume}
+                onChange={handleVolumeChange}
+                aria-labelledby="volume-slider"
+                sx={{ width: 200 }}
+              />
+            </Box>
             <form onSubmit={handleSubmit}>
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Autocomplete
