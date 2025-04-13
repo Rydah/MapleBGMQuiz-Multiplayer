@@ -142,9 +142,12 @@ io.on('connection', (socket) => {
   });
 });
 
+let hasEnded;
+
 function startNewRound(lobbyId) {
   const lobby = lobbies.get(lobbyId);
   if (!lobby) return;
+  hasEnded = false;
 
   // Filter BGM by year range
   const filteredBgm = bgmData.filter(bgm => {
@@ -178,7 +181,10 @@ function startNewRound(lobbyId) {
 
   // End round after 20 seconds
   setTimeout(() => {
-    endRound(lobbyId);
+    if (!hasEnded){
+      hasEnded = true;
+      endRound(lobbyId);
+    }
   }, 20000);
 }
 
@@ -188,7 +194,10 @@ function checkRoundCompletion(lobbyId) {
 
   const allGuessed = lobby.players.every(player => player.guess !== undefined);
   if (allGuessed) {
-    endRound(lobbyId);
+    if (!hasEnded){ 
+      hasEnded = true;
+      endRound(lobbyId);
+    }
   }
 }
 
